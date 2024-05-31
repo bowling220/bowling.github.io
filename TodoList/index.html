@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To-Do List</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+
+    #container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #fff;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    input[type="text"],
+    input[type="date"],
+    select {
+      width: calc(100% - 90px);
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    li {
+      padding: 10px;
+      border-bottom: 1px solid #ccc;
+      display: flex;
+      align-items: center;
+    }
+
+    li:last-child {
+      border-bottom: none;
+    }
+
+    .task-title {
+      flex-grow: 1;
+      margin-right: 10px;
+    }
+
+    .task-priority,
+    .due-date,
+    .category {
+      color: #888;
+      font-style: italic;
+      margin-right: 10px;
+    }
+
+    .delete-btn {
+      background-color: #dc3545;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 25px;
+      height: 25px;
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .delete-btn:hover {
+      background-color: #bd2130;
+    }
+
+    #clearAllBtn {
+      margin-top: 20px;
+      background-color: #dc3545;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #clearAllBtn:hover {
+      background-color: #bd2130;
+    }
+
+    .edit-input {
+      width: calc(100% - 45px);
+      padding: 5px;
+    }
+
+    .edited {
+      color: #FF0000; /* Change the color of edited tasks */
+    }
+
+    .task-high { color: red; }
+    .task-medium { color: orange; }
+    .task-low { color: green; }
+    .completed-task { text-decoration: line-through; }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <h1>To-Do List</h1>
+    <div id="form">
+      <input type="text" id="taskInput" placeholder="Enter task title">
+      <select id="prioritySelect">
+        <option value="high">High Priority</option>
+        <option value="medium">Medium Priority</option>
+        <option value="low">Low Priority</option>
+      </select>
+      <input type="date" id="dueDateInput">
+      <input type="text" id="categoryInput" placeholder="Enter category">
+      <button onclick="addTask()">Add Task</button>
+    </div>
+    <ul id="taskList"></ul>
+    <button id="clearAllBtn" onclick="clearAllTasks()">Clear All</button>
+  </div>
+
+  <script>
+    var originalTasks = {}; // Object to store original task titles
+
+    function addTask() {
+      var taskInput = document.getElementById("taskInput");
+      var taskTitle = taskInput.value.trim();
+      if (taskTitle === "") return;
+
+      var taskList = document.getElementById("taskList");
+      var prioritySelect = document.getElementById("prioritySelect");
+      var dueDateInput = document.getElementById("dueDateInput");
+      var categoryInput = document.getElementById("categoryInput");
+
+      var priorityValue = prioritySelect.value;
+      var dueDate = dueDateInput.value || "No Due Date";
+      var category = categoryInput.value || "Uncategorized";
+
+      var taskItem = document.createElement("li");
+      taskItem.innerHTML = `
+        <span class="task-title task-${priorityValue}">${taskTitle}</span>
+        <span class="task-priority">(${priorityValue.charAt(0).toUpperCase()}${priorityValue.slice(1)} Priority)</span>
+        <span class="due-date">${dueDate}</span>
+        <span class="category">${category}</span>
+        <button class="edit-btn" onclick="editTask(this)">Edit</button>
+        <button class="delete-btn" onclick="deleteTask(this)">X</button>
+        <input type="checkbox" onchange="toggleTaskCompletion(this)">
+      `;
+      taskList.appendChild(taskItem);
+
+      originalTasks[taskTitle] = taskTitle; // Save original title
+      taskInput.value = "";
+      dueDateInput.value = ""; // Reset due date input
+      categoryInput.value = ""; // Reset category input
+      saveTasks();
+    }
+
+    function toggleTaskCompletion(checkbox) {
+      var taskTitleElement = checkbox.parentElement.querySelector('.task-title');
+      taskTitleElement.classList.toggle('completed-task');
+      saveTasks();
+    }
+
+    function deleteTask(btn) {
+      var taskItem = btn.parentElement;
+      taskItem.remove();
+      saveTasks();
+    }
+
+    function editTask(btn) {
+      var taskItem = btn.parentElement;
+      var taskTitleElement = taskItem.querySelector('.task-title');
+      var taskTitle = taskTitleElement.textContent.trim();
+      var newTitle = prompt("Edit task title:", taskTitle);
+      if (newTitle !== null && newTitle.trim() !== "") {
+        if (newTitle.trim() !== taskTitle) {
+          var editedTitle = highlightDifferences(taskTitle, newTitle);
+          taskTitleElement.innerHTML = editedTitle;
+        }
+        originalTasks[newTitle] = originalTasks[taskTitle]; // Update original title
+        delete originalTasks[taskTitle]; // Remove old original title
+        saveTasks();
+      }
+    }
+
+    function highlightDifferences(original, edited) {
+      var originalWords = original.split(" ");
+      var editedWords = edited.split(" ");
+      var editedTitle = "";
+
+      for (var i = 0; i < editedWords.length; i++) {
+        if (editedWords[i] !== originalWords[i]) {
+          editedTitle += `<span class="edited">${editedWords[i]}</span>`;
+        } else {
+          editedTitle += editedWords[i];
+        }
+        if (i < editedWords.length - 1) {
+          editedTitle += " ";
+        }
+      }
+
+      if (editedWords.length > originalWords.length) {
+        editedTitle += " (edited)";
+      }
+
+      return editedTitle;
+    }
+
+    function clearAllTasks() {
+      var taskList = document.getElementById("taskList");
+      taskList.innerHTML = "";
+      originalTasks = {}; // Reset original titles
+      saveTasks();
+    }
+
+    function saveTasks() {
+      var taskList = document.getElementById("taskList").innerHTML;
+      localStorage.setItem("tasks", taskList);
+      localStorage.setItem("originalTasks", JSON.stringify(originalTasks));
+    }
+
+    function loadTasks() {
+      var savedTasks = localStorage.getItem("tasks");
+      if (savedTasks) {
+        document.getElementById("taskList").innerHTML = savedTasks;
+        originalTasks = JSON.parse(localStorage.getItem("originalTasks")) || {};
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+      loadTasks();
+    });
+  </script>
+</body>
+</html>
